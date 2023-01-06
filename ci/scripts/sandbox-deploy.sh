@@ -1,6 +1,6 @@
 
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export stackName="fivetran_orchestration"
+export stackName="fivetran-orchestration"
 
 export ecrRepo="${stackName}-ecr"
 export ecrDockerImageName="${stackName}-docker-image"

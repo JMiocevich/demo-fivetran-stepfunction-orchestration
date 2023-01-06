@@ -5,7 +5,7 @@ import boto3
 def lambda_handler(event, context):
 
     print(event)
-    # This is to deal with fivetrans shitty test run webhook which dosnt match the format of actual data 
+    # This is to deal with fivetrans test run webhook which dosnt match the format of actual data 
     if "data" not in event['body']:
         return {     
         'statusCode': 200,

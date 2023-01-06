@@ -23,13 +23,13 @@ def lambda_handler(event, context):
     client_stepfunction = boto3.client('stepfunctions')
 
     if status == 'SUCCESSFUL':
-        resp= client_stepfunction.send_task_success(taskToken=token,output='{}')
+        client_stepfunction.send_task_success(taskToken=token,output='{}')
         print('success')
-        print(resp)
+ 
     else:
-        print('error')
-        resp = client_stepfunction.send_task_failure(taskToken=token)
-        print(resp)
+        print('failure')
+        client_stepfunction.send_task_failure(taskToken=token)
+
 
  
 

@@ -15,13 +15,8 @@ def lambda_handler(event, context):
 def getConnectorList(group_id): 
     FivetranKey=get_secret('FivetranKey')
     FivetranSecret=get_secret('FivetranSecret')
-    
-    url = "https://api.fivetran.com/v1/groups/" + group_id + "/connectors"
 
-    query = {
-    "cursor": "string",
-    "limit": "0"
-    }
+    url = "https://api.fivetran.com/v1/groups/" + group_id + "/connectors"
 
     headers = {"Accept": "application/json"}
 

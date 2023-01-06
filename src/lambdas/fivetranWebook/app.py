@@ -12,7 +12,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Hello from Lambda! Real Test')}
     
 
-    client_stepfunction = boto3.client('stepfunctions')
+
     body=json.loads(event['body'])
     connector_id = body['connector_id']
     status=body['data']['status']
@@ -20,17 +20,11 @@ def lambda_handler(event, context):
     print(connector_id)
     print(status)
 
-    client = boto3.resource('dynamodb')
-    table = client.Table("stateTokenTable")
+    # Get the token from the dynamoDB table
+    token = getWaitToken(connector_id)
 
-    response = table.get_item(
-    Key={
-        'id': connector_id
-    }
-    )       
-
-    token = response['Item']['MyTaskToken']
-
+    # Condtional Logic to send success or failure to step function
+    client_stepfunction = boto3.client('stepfunctions')
 
     if status == 'SUCCESSFUL':
         resp= client_stepfunction.send_task_success(taskToken=token,output='{}')
@@ -43,5 +37,14 @@ def lambda_handler(event, context):
 
  
 
-
+def getWaitToken(connector_id):
+    client = boto3.resource('dynamodb')
+    table = client.Table("stateTokenTable")
+    response = table.get_item(
+    Key={
+        'id': connector_id
+    }
+    )       
+    token = response['Item']['MyTaskToken']
+    return token
 

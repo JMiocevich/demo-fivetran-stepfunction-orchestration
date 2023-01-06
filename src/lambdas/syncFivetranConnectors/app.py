@@ -5,14 +5,19 @@ from botocore.exceptions import ClientError
 
 
 def lambda_handler(event, context):
-    print(event)
-    FivetranKey=get_secret('FivetranKey')
-    FivetranSecret=get_secret('FivetranSecret')
 
 
     connector_id = event['connectors_id']
     token= event['MyTaskToken']
 
+    syncFivetranConnector(connector_id)
+    storeToken(connector_id,token)
+
+
+def syncFivetranConnector(connector_id):
+    FivetranKey=get_secret('FivetranKey')
+    FivetranSecret=get_secret('FivetranSecret')
+    
     url = "https://api.fivetran.com/v1/connectors/" + connector_id + "/sync"
 
     headers = {"Accept": "application/json"}
@@ -22,15 +27,12 @@ def lambda_handler(event, context):
     data = response.json()
     print(data)
 
+def storeToken(connector_id,token):
     client = boto3.resource('dynamodb')
     table = client.Table("stateTokenTable")
     print(table.table_status)
 
     table.put_item(Item= {'id': connector_id,'MyTaskToken': token})
-
-
-
-
 
 def get_secret(secret_name):
 

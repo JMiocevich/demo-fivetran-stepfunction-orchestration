@@ -5,11 +5,17 @@ from botocore.exceptions import ClientError
 
 
 def lambda_handler(event, context):
-    print(event)
-    FivetranKey=get_secret('FivetranKey')
-    FivetranSecret=get_secret('FivetranSecret')
 
     group_id = event['group_id']
+    
+    json_return = getConnectorList(group_id)
+
+    return json_return
+
+def getConnectorList(group_id): 
+    FivetranKey=get_secret('FivetranKey')
+    FivetranSecret=get_secret('FivetranSecret')
+    
     url = "https://api.fivetran.com/v1/groups/" + group_id + "/connectors"
 
     query = {
@@ -33,11 +39,6 @@ def lambda_handler(event, context):
         'group_id': group_id,
         'connectors_list': connectors_list
     }
-
-    print(json_return)
-
-    return json_return
-
 
 
 

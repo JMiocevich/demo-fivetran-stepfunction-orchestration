@@ -1,0 +1,257 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: The template used to create an ECS Cluster from the ECS Console.
+
+Parameters:
+  ecrRepo:
+    Description: ecs_repo_name
+    Type: String
+
+  ecrDockerImageName:
+    Description: ecrDockerImageName
+    Type: String
+
+
+Resources:
+  MyRepository: 
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: !Ref ecrRepo
+
+  FivetranKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: FivetranKey
+
+  FivetranSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: FivetranSecret
+
+  SnowflakePrivateKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: SnowflakePrivateKey
+
+
+  getConnectorList:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: ../src/lambdas/getFivetranConnectorList
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Timeout: 30
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref FivetranKey
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref FivetranSecret
+
+  syncFivetranConnectors:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: ../src/lambdas/syncFivetranConnectors
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Timeout: 30
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              !Ref stateTokenTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref FivetranKey
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref FivetranSecret
+
+  fivetranWebook:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Timeout: 30
+      CodeUri: ../src/lambdas/fivetranWebook
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName:
+              !Ref stateTokenTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: states:*
+              Resource: !Ref FivetranOrchestrationStateMachine
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 200
+
+
+  stateTokenTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: stateTokenTable
+
+
+
+  dbtCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: dbtCluster_cf
+      CapacityProviders:
+        - FARGATE_SPOT
+
+
+
+### state machine
+  FivetranOrchestrationStateMachine:
+    Name: fiveTranOrchestrationStateMachine
+    Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Properties:
+      DefinitionUri: statemachine.yml
+      DefinitionSubstitutions:
+        getConnectorList: !Ref getConnectorList
+        syncFivetranConnectors: !Ref syncFivetranConnectors
+        dbtCluster: !Ref dbtCluster
+        ECSTaskDefinition: !Ref ECSTaskDefinition
+        SecurityGroup: !Ref SecurityGroup
+        Subnet: !Ref Subnet
+      # Role: arn:aws:iam::819275739816:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS
+        # VPC and subnets
+      Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+        - LambdaInvokePolicy:
+            FunctionName: !Ref syncFivetranConnectors
+        - LambdaInvokePolicy:
+            FunctionName: !Ref getConnectorList
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [ events:PutTargets, events:PutRule, events:DescribeRule,iam:PassRole ,iam:GetRole]
+              Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForECSTaskRule"
+            - Effect: Allow
+              Action: [ecs:StopTask, ecs:DescribeTasks]
+              Resource: "*"
+            - Effect: Allow
+              Action: [ ecs:RunTask ,iam:GetRole ]
+              Resource: !Ref ECSTaskDefinition
+            - Effect: Allow
+              Action: [ iam:PassRole ,iam:GetRole ]
+              Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+      - LogConfiguration:
+          Options:
+            awslogs-group: "/ecs/dbtRun"
+            awslogs-region: ap-southeast-2
+            awslogs-stream-prefix: ecs
+            awslogs-create-group: 'true'
+          LogDriver: awslogs
+        Name: dbtrun
+        # image sub HArdcodestill need to fix
+        Image: !Sub "${AWS::AccountId}.dkr.ecr.ap-southeast-2.amazonaws.com/${ecrRepo}:${ecrDockerImageName}"
+        Essential: true
+        PortMappings: []
+        EnvironmentFiles: []
+      Family: dbtRun
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole"
+      TaskRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole"
+      Cpu: 1 vCPU
+      Memory: 3 GB
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+    UpdateReplacePolicy: Retain
+
+# networking
+
+  # Network
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        VpcId: !Ref VPC
+        GroupDescription: pwmcintyre
+        SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: 2456
+          ToPort: 2458
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: !Sub ${ AWS::Region }a
+      MapPublicIpOnLaunch: true
+
+  # Allow outbound internet access
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet
+
+
+Outputs:
+  HttpApiUrl:
+    Description: URL of your API endpoint
+    Value:
+      Fn::Sub: 'https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+  securityGroup:
+    Description: sgroup
+    Value: !Ref SecurityGroup
+
+  subnet:
+    Description: subnet
+    Value: !Ref Subnet

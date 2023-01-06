@@ -1,0 +1,16 @@
+
+
+test_proj:
+    target: sandbox
+    outputs:
+        sandbox:
+            account: insert_account_here
+            database: INSERT_DATABASE_HERE
+            private_key_passphrase: insert_key_passphrase_here
+            private_key_path: ../rsa_key.p8
+            role: insert_role_here
+            schema: insert_schema_here
+            threads: 1
+            type: snowflake
+            user: insert_user_here
+            warehouse: insert_warehouse_here

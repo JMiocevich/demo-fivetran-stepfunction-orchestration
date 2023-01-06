@@ -1,0 +1,65 @@
+Comment: A description of my state machine
+StartAt: Get Connector list
+States:
+  Get Connector list:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    OutputPath: $.Payload
+    Parameters:
+      FunctionName: >-
+        ${getConnectorList}
+      Payload.$: $
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.TooManyRequestsException
+        IntervalSeconds: 2
+        MaxAttempts: 6
+        BackoffRate: 2
+    Next: Sync All Connectors in group
+  Sync All Connectors in group:
+    Type: Map
+    ItemProcessor:
+      ProcessorConfig:
+        Mode: INLINE
+      StartAt: Sync Connectors
+      States:
+        Sync Connectors:
+          Type: Task
+          Resource: arn:aws:states:::lambda:invoke.waitForTaskToken
+          Parameters:
+            FunctionName: >-
+              ${syncFivetranConnectors}
+            Payload:
+              MyTaskToken.$: $$.Task.Token
+              connectors_id.$: $
+          Retry:
+            - ErrorEquals:
+                - Lambda.ServiceException
+                - Lambda.AWSLambdaException
+                - Lambda.SdkClientException
+                - Lambda.TooManyRequestsException
+              IntervalSeconds: 2
+              MaxAttempts: 6
+              BackoffRate: 2
+          End: true
+    ItemsPath: $.connectors_list
+    Next: run DBT project
+  run DBT project:
+    Type: Task
+    Resource: arn:aws:states:::ecs:runTask.sync
+    Parameters:
+      LaunchType: FARGATE
+      Cluster: ${dbtCluster}
+      TaskDefinition: ${ECSTaskDefinition}
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - ${SecurityGroup}
+          Subnets: 
+            - ${Subnet}
+    End: true
+

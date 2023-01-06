@@ -1,0 +1,3 @@
+.aws-sam
+setup_fivetran_webhook.sh
+.DS_Store

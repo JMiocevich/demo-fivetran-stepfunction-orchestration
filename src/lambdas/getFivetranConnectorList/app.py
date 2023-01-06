@@ -34,6 +34,7 @@ def getConnectorList(group_id):
         'group_id': group_id,
         'connectors_list': connectors_list
     }
+    return json_return
 
 
 

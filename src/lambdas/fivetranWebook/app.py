@@ -16,9 +16,6 @@ def lambda_handler(event, context):
     connector_id = body['connector_id']
     status=body['data']['status']
 
-    print(connector_id)
-    print(status)
-
     # Get the token from the dynamoDB table
     token = getWaitToken(connector_id)
 

@@ -5,8 +5,7 @@ from botocore.exceptions import ClientError
 
 
 def lambda_handler(event, context):
-
-
+    
     connector_id = event['connectors_id']
     token= event['MyTaskToken']
 
@@ -17,7 +16,7 @@ def lambda_handler(event, context):
 def syncFivetranConnector(connector_id):
     FivetranKey=get_secret('FivetranKey')
     FivetranSecret=get_secret('FivetranSecret')
-    
+
     url = "https://api.fivetran.com/v1/connectors/" + connector_id + "/sync"
 
     headers = {"Accept": "application/json"}

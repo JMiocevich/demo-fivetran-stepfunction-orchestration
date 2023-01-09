@@ -3,7 +3,6 @@
 
 Initial deployment into your account:
 * Configure AWS credentials
-* In your local environment, from the project root directory, deploy into your sandbox account using:
 
 #### Requirements
 - aws sam (homebrew installation)

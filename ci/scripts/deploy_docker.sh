@@ -23,6 +23,7 @@ docker buildx build --platform linux/amd64 -t "${ACCOUNT_ID}".dkr.ecr.ap-southea
 
 
 echo "Pushing Docker Image to ECR"
+{
 docker push "${ACCOUNT_ID}".dkr.ecr.ap-southeast-2.amazonaws.com/${ecrRepo}:${ecrDockerImageName}
 } || {
   echo "## [Error] deploying docker image"

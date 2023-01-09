@@ -1,8 +1,8 @@
 # Fivetran DBT Stepfunction Orchestration
 
 
-Initial deployment into your Sandbox account:
-* In your local environment, from the MR SSO Login get the AWS CLI credentials / environment variables (`AWS_*`) for your Sandbox account and export these into your terminal.
+Initial deployment into your account:
+* Configure AWS credentials
 * In your local environment, from the project root directory, deploy into your sandbox account using:
 
 #### Requirements

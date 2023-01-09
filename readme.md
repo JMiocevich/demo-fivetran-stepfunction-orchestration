@@ -24,7 +24,7 @@ brew install aws-sam-cli
 3. Update ```FivetranKey``` and  ```FivetranSecret``` Secrets in secret manager. See [Fivetran Docs](https://fivetran.com/docs/rest-api/getting-started) to create API key
 4. To create snowflake b64 key, run this command ```openssl base64 -in [filename] | pbcopy``` on your private key and copy into ```SnowflakePrivateKey``` secret
 5. Create [new webhook](https://developers.fivetran.com/openapi/reference/v1/operation/create_group_webhook/) on desired fivetran group 
-6. Update dbt profile at  ```src/ecs/dbt_project/profiles.yml``` to match your desiredusername and desired database
+6. Update dbt profile at  ```src/ecs/dbt_project/profiles.yml``` to match your desired username and desired database
 7. Update src/ecs/dbt_project as needed 
 8. Start New StepFunction Excecution with the following json input (insert your fivetran group_id)
    
